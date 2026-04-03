@@ -42,8 +42,8 @@ class EmbeddingManager:
     
     def __init__(self, 
                  embed_model: str = "sentence-transformers/all-MiniLM-L6-v2",
-                 chunk_size: int = 800,
-                 chunk_overlap: int = 150):
+                 chunk_size: int = 1000,
+                 chunk_overlap: int = 200):
         
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -111,7 +111,12 @@ class RAGPipeline:
         self.loader = None
         self.embedding_manager = EmbeddingManager()
         self.vector_store = VectorStoreManager()
-        self.llm = ChatOllama(model="llama3.2:1b", temperature=0.3)
+        ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.llm = ChatOllama(
+            model="llama3.2:1b", 
+            temperature=0.3,
+            base_url=ollama_base_url
+        )
         self.retriever = None
 
     def ingest(self, file_paths: list[str]):
@@ -130,6 +135,13 @@ class RAGPipeline:
         self.vector_store.add_documents(chunks, embeddings)
         
         print("Ingestion completed successfully!")
+
+    def retrieve(self, query: str, k: int = 5):
+        results = self.vector_store.collection.query(
+            query_texts=[query],
+            n_results=k
+        )
+        return results['documents'][0] if results['documents'] else []
 
     def query(self, question: str, k: int = 4) -> str:
         """Query the RAG system"""

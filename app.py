@@ -1,7 +1,9 @@
 import streamlit as st
-import tempfile
 import os
-from core.rag_pipline import RAGPipeline
+from core.rag_pipeline import RAGPipeline
+from core.analyzer import Analyzer
+from core.suggestions import SuggestionEngine
+from utils.helpers import save_uploaded_file, cleanup_temp_files, get_match_color
 
 # ========================= CONFIG =========================
 st.set_page_config(
@@ -11,15 +13,17 @@ st.set_page_config(
 )
 
 st.title("JobMind AI")
-st.markdown("**Local AI Resume & Job Matcher** | Privacy-First RAG System")
+st.markdown("**Smart Local AI Resume & Job Description Matcher**")
 
-# Initialize Session State
+# ===================== SESSION STATE =====================
 if "rag" not in st.session_state:
     st.session_state.rag = RAGPipeline()
+    st.session_state.analyzer = Analyzer(st.session_state.rag)
+    st.session_state.suggestions = SuggestionEngine(st.session_state.rag)
     st.session_state.analyzed = False
     st.session_state.messages = []
 
-# ====================== SIDEBAR ======================
+# ===================== SIDEBAR =====================
 with st.sidebar:
     st.header("Upload Documents")
     
@@ -27,83 +31,80 @@ with st.sidebar:
     jd_file = st.file_uploader("Job Description (PDF)", type="pdf", key="jd")
     
     col1, col2 = st.columns(2)
+    
     with col1:
         if st.button("Analyze Documents", type="primary", use_container_width=True):
             if not resume_file:
                 st.error("Please upload your Resume")
             else:
-                with st.spinner("Processing documents..."):
-                    try:
-                        # Save uploaded files temporarily
-                        resume_path = None
-                        jd_path = None
-
-                        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                            tmp.write(resume_file.getbuffer())
-                            resume_path = tmp.name
-
-                        if jd_file:
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp2:
-                                tmp2.write(jd_file.getbuffer())
-                                jd_path = tmp2.name
-
-                        # Ingest using new RAGPipeline
-                        file_list = [resume_path]
-                        if jd_path:
-                            file_list.append(jd_path)
-
-                        st.session_state.rag.ingest(file_list)
+                temp_paths = []
+                try:
+                    with st.spinner("Processing documents..."):
+                        resume_path = save_uploaded_file(resume_file)
+                        temp_paths.append(resume_path)
                         
-                        # Cleanup
-                        os.unlink(resume_path)
+                        jd_path = save_uploaded_file(jd_file)
                         if jd_path:
-                            os.unlink(jd_path)
+                            temp_paths.append(jd_path)
 
+                        # Ingest using your rag_pipeline
+                        st.session_state.rag.ingest(temp_paths)
+                        
                         st.session_state.analyzed = True
-                        st.success("Documents analyzed successfully!")
-
-                    except Exception as e:
-                        st.error(f"Error during analysis: {str(e)}")
+                        st.success("Documents Analyzed Successfully!")
+                
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                finally:
+                    cleanup_temp_files(temp_paths)
 
     with col2:
-        if st.button("Clear All", use_container_width=True):
+        if st.button("Clear Session", use_container_width=True):
             st.session_state.rag = RAGPipeline()
             st.session_state.analyzed = False
             st.session_state.messages = []
             st.rerun()
 
-# ====================== MAIN AREA ======================
+# ===================== MAIN CONTENT =====================
 if st.session_state.analyzed:
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "Dashboard", 
         "Gap Analysis", 
         "Cover Letter", 
-        "Interview Prep", 
+        "Suggestions", 
         "Chat"
     ])
 
+    # ------------------- Dashboard -------------------
     with tab1:
         st.header("Match Dashboard")
-        st.info("Match Score & Visualization coming soon (you can add later)")
-        st.metric(label="Overall Match", value="78%", delta="Good Match")
+        score = st.session_state.analyzer.get_match_score()
+        color = get_match_color(score)
+        
+        print(score)
 
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.metric("Overall Match", score, delta=color)
+        with col2:
+            st.success("Analysis Complete! Check other tabs for details.")
+
+    # ------------------- Gap Analysis -------------------
     with tab2:
         st.header("Gap Analysis")
         if st.button("Generate Detailed Gap Analysis", type="primary"):
-            with st.spinner("Analyzing gaps..."):
-                result = st.session_state.rag.query(
-                    "Perform a detailed gap analysis. Highlight missing skills, experience gaps, and specific suggestions."
-                )
+            with st.spinner("Analyzing gaps between resume and job description..."):
+                result = st.session_state.analyzer.gap_analysis()
                 st.markdown(result)
 
+    # ------------------- Cover Letter -------------------
     with tab3:
         st.header("AI Cover Letter")
-        if st.button("Generate Cover Letter", type="primary"):
-            with st.spinner("Writing personalized cover letter..."):
-                result = st.session_state.rag.query(
-                    "Write a professional, concise, and impactful cover letter for this job position."
-                )
+        if st.button("Generate Personalized Cover Letter", type="primary"):
+            with st.spinner("Writing professional cover letter..."):
+                result = st.session_state.suggestions.generate_cover_letter()
                 st.markdown(result)
+                
                 st.download_button(
                     label="Download Cover Letter",
                     data=result,
@@ -111,34 +112,37 @@ if st.session_state.analyzed:
                     mime="text/plain"
                 )
 
+    # ------------------- Suggestions -------------------
     with tab4:
-        st.header("Interview Preparation")
-        if st.button("Generate Likely Interview Questions"):
-            with st.spinner("Generating questions..."):
-                result = st.session_state.rag.query(
-                    "Generate 6-8 likely technical and behavioral interview questions for this role with sample answers based on my resume."
-                )
+        st.header("Resume Improvement Suggestions")
+        if st.button("Get Actionable Suggestions"):
+            with st.spinner("Generating suggestions..."):
+                result = st.session_state.suggestions.get_improvement_suggestions()
                 st.markdown(result)
 
+    # ------------------- Chat -------------------
     with tab5:
         st.header("Ask Anything")
+        
         for msg, is_user in st.session_state.messages:
             with st.chat_message("user" if is_user else "assistant"):
                 st.write(msg)
 
-        if prompt := st.chat_input("Ask about resume, job, improvements, etc..."):
+        if prompt := st.chat_input("Ask about resume, job, skills, or improvements..."):
             st.session_state.messages.append((prompt, True))
             with st.chat_message("user"):
                 st.write(prompt)
-
+            
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
-                    answer = st.session_state.rag.query(prompt)
+                    # You can improve this later by adding a query method in RAGPipeline
+                    answer = st.session_state.rag.query(prompt) if hasattr(st.session_state.rag, 'query') else \
+                             "Chat functionality needs .query() method in RAGPipeline. Use other tabs for now."
                     st.write(answer)
             st.session_state.messages.append((answer, False))
 
 else:
-    st.info("Upload your **Resume** and **Job Description** from the sidebar and click **Analyze Documents** to start.")
+    st.info("Please upload your **Resume** and **Job Description** from the sidebar and click **Analyze Documents**")
 
 # Footer
-st.caption("JobMind AI | 100% Local | Powered by Ollama + LangChain + ChromaDB")
+st.caption("JobMind AI | 100% Local | RAG | LangChain + Ollama")
