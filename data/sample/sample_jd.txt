@@ -1,0 +1,22 @@
+JOB TITLE: Junior Security Engineer / Full Stack Developer
+COMPANY: CyberShield Solutions
+
+OVERVIEW
+We are looking for a hybrid talent who understands both secure coding practices 
+and modern web frameworks. You will help build internal tools for vulnerability 
+scanning and reporting.
+
+QUALIFICATIONS
+- Strong proficiency in Python and React.
+- Understanding of containerization (Docker & Docker Compose).
+- Experience with security auditing tools like Nmap or Metasploit.
+- Interest in AI-driven automation and Large Language Models (LLMs).
+
+BONUS SKILLS
+- Experience building RAG pipelines or working with LangChain.
+- Ability to create custom terminal-based interfaces.
+- Knowledge of Linux system administration (Kali/Debian).
+
+BENEFITS
+- Remote-first culture.
+- Learning budget for security certifications (OSCP/CISSP).

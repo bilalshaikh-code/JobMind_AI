@@ -1,0 +1,23 @@
+BILAL SHAIKH
+Cybersecurity Student & Web Developer
+Location: Localhost / Remote
+Email: bilal@example.com
+
+SUMMARY
+Passionate Cybersecurity enthusiast and Web Developer focused on building secure, 
+scalable systems. Experienced in penetration testing, React development, 
+and local LLM integration (RAG pipelines).
+
+TECHNICAL SKILLS
+- Security: Metasploit, Nmap, Wireshark, Kali Linux, Penetration Testing.
+- Web Dev: React, Rsbuild, JavaScript, HTML5, CSS3 (Matrix-style UI).
+- Backend: Python (FastAPI/Flask), Docker, Docker Compose, PostgreSQL.
+- AI/ML: LangChain, Ollama (Llama 3.2), Vector Databases (ChromaDB/FAISS).
+
+PROJECTS
+- Jobmind_AI: A RAG-based career assistant using local LLMs and Streamlit.
+- Secure Text Editor: Python-based editor with real-time syntax highlighting.
+- Terminal Portfolio: A Kali Linux themed web portfolio with custom CLI logic.
+
+EDUCATION
+- B.S. in Cybersecurity (In Progress)
